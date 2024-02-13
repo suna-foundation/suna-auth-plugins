@@ -1,11 +1,10 @@
 import 'server-only'
-import {Provider, Session, SessionType, UserType} from "ez-auth/src/types";
 import {NextRequest} from "next/server";
-import {sendErrorRedirect, sendJson} from "ez-auth/src/functions/responces";
 import { cookies } from 'next/headers';
-import {Auth} from "ez-auth";
-import {createToken, decodeToken} from "ez-auth/src/functions/jwt";
 import axios from "axios";
+
+import {Provider, Session, SessionType, UserType} from "suna-auth/src/types";
+import {Auth, createToken, decodeToken, sendErrorRedirect, sendJson} from "suna-auth";
 
 
 interface Config {

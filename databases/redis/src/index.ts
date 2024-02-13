@@ -1,5 +1,6 @@
 import 'server-only'
 import Redis, { Redis as RedisInstance } from "ioredis";
+import {Cache} from "suna-auth/src/types";
 
 interface SetValueOptions {
   expire: number;
@@ -9,7 +10,7 @@ interface Config {
   redis_url: string;
 }
 
-export class RedisClient {
+export class RedisClient implements Cache {
   private static instance: RedisClient | null = null;
   private static redisClient: RedisInstance | null = null;
 

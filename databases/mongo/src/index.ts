@@ -1,6 +1,6 @@
 import 'server-only'
 import mongoose, {Document} from "mongoose";
-import {AccountType, SessionType, UserType} from "../../../../ezauth/src/types";
+import {AccountType, Database, SessionType, UserType} from "suna-auth/src/types";
 import Accounts from "./collections/accounts";
 import Users from "./collections/users";
 import Sessions from "./collections/sessions";
@@ -10,7 +10,7 @@ interface Config {
 }
 
 
-export class MongooseAuth {
+export class MongooseAuth implements Database {
   private static instance: MongooseAuth | null = null;
   private instance: MongooseAuth | null = null;
 
