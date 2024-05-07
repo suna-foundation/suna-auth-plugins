@@ -1,6 +1,6 @@
-import 'server-only'
+import "server-only";
 import Redis, { Redis as RedisInstance } from "ioredis";
-import {Cache} from "suna-auth/src/types";
+import { Cache } from "suna-auth/dist/types";
 
 interface SetValueOptions {
   expire: number;
@@ -23,7 +23,8 @@ export class RedisClient implements Cache {
   }
 
   private get client(): RedisInstance {
-    if (!RedisClient.redisClient) throw "No redis url provided before trying to access redis"
+    if (!RedisClient.redisClient)
+      throw "No redis url provided before trying to access redis";
     return RedisClient.redisClient;
   }
 
@@ -31,8 +32,18 @@ export class RedisClient implements Cache {
     return this.client.get(key);
   }
 
-  public async setValue(key: string, value: string, options: SetValueOptions = { expire: 60 * 60 }): Promise<unknown> {
-    return this.client.setex(key, options.expire, value,);
+  public async getValues(pattern: string): Promise<string[]> {
+    return this.client.keys(pattern);
+  }
+
+  public async setValue(
+    key: string,
+    value: string,
+    options: SetValueOptions = { expire: 60 * 60 },
+  ): Promise<unknown> {
+    const result = await this.client.set(key, value);
+    this.client.expire(key, options.expire);
+    return result;
   }
 
   public async deleteKey(key: string): Promise<number> {

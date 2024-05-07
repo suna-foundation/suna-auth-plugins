@@ -1,11 +1,16 @@
-import 'server-only'
-import {NextRequest} from "next/server";
-import { cookies } from 'next/headers';
+import "server-only";
+import { NextRequest } from "next/server";
+import { cookies } from "next/headers";
 import axios from "axios";
 
-import {Provider, Session, SessionType, UserType} from "suna-auth/src/types";
-import {Auth, createToken, decodeToken, sendErrorRedirect, sendJson} from "suna-auth";
-
+import { Provider, Session, SessionType, UserType, AccountType } from "suna-auth/dist/types";
+import {
+  Auth,
+  createToken,
+  decodeToken,
+  sendErrorRedirect,
+  sendJson,
+} from "suna-auth";
 
 interface Config {
   client_id: string;
@@ -16,7 +21,7 @@ interface Config {
 
 export class DiscordProvider implements Provider {
   private static instance: DiscordProvider | null = null;
-  name: "discord" = 'discord'
+  name: "discord" = "discord";
   public credential: Config;
 
   private constructor(credential: Config) {
@@ -27,9 +32,8 @@ export class DiscordProvider implements Provider {
     if (!this.instance) {
       this.instance = new DiscordProvider(config);
     }
-    return this.instance
+    return this.instance;
   }
-
 
   public async handleCallback(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
@@ -55,12 +59,18 @@ export class DiscordProvider implements Provider {
     if (!user.verified)
       return sendErrorRedirect(404, "please use a verified discord account");
 
-    const [savedAccount, savedUser, savedSession] = await this.saveData(user, tokenData);
+    const [savedAccount, savedUser, savedSession] = await this.saveData(
+      user,
+      tokenData,
+    );
+
+    await Auth.callbacks.handleCreate(savedAccount, savedUser, savedSession);
 
     const cookie = cookies();
     cookie.set({
       name: "SessionToken",
       value: savedSession.sessionToken,
+      expires: (savedAccount as AccountType).expiresAt,
     });
 
     const referrer = new URL(
@@ -73,23 +83,27 @@ export class DiscordProvider implements Provider {
   }
 
   public async handleSignIn(request: NextRequest, referer?: string) {
-    const url = this.getOauthUrl()
+    const url = this.getOauthUrl();
 
-    cookies().set({name: "redirectUrl", value: referer || "/"});
+    cookies().set({ name: "redirectUrl", value: referer || "/" });
 
-    return sendJson({url: url});
+    return sendJson({ url: url });
   }
 
   public async handleSignOut(request: NextRequest) {
-    return
+    return;
   }
 
   public async handleAuthCheck(token: string) {
-    const discordProvider = Auth.config[this.name]
-    const session = await discordProvider.database.findSession({sessionToken: token});
+    const discordProvider = Auth.config[this.name];
+    const session = await discordProvider.database.findSession({
+      sessionToken: token,
+    });
     if (!session) return false;
 
-    const account = await discordProvider.database.findAccount({accountId:session.accountId})
+    const account = await discordProvider.database.findAccount({
+      accountId: session.accountId,
+    });
     if (!account || !account.expiresAt) return false;
 
     if (new Date() > new Date(account.expiresAt)) {
@@ -105,17 +119,19 @@ export class DiscordProvider implements Provider {
       return false;
     }
 
-    const user = await discordProvider.database.findUser({accountId: account.accountId})
+    const user = await discordProvider.database.findUser({
+      accountId: account.accountId,
+    });
 
-    const jwtResult = await decodeToken(token)
-    if (!user || !jwtResult || jwtResult.payload.email !== user.email) return false;
+    const jwtResult = await decodeToken(token);
+    if (!user || !jwtResult || jwtResult.payload.email !== user.email)
+      return false;
 
     return { user: user } as Session;
   }
 
-
   private getRedirectUri(url?: string) {
-    return `${url || process.env.NEXTAUTH_URL}/api/auth/callback/discord`
+    return `${url || process.env.NEXTAUTH_URL}/api/auth/callback/discord`;
   }
 
   private getOauthUrl(redirect_uri?: string): string {
@@ -133,7 +149,7 @@ export class DiscordProvider implements Provider {
     return axios({
       method: "post",
       url: "https://discord.com/api/oauth2/token",
-      headers: {"Content-Type": "application/x-www-form-urlencoded"},
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
       auth: {
         username: this.credential.client_id,
         password: this.credential.client_secret,
@@ -152,7 +168,7 @@ export class DiscordProvider implements Provider {
   }
 
   private async saveData(user: any, tokenData: any) {
-    const oauth = Auth.config[this.name]
+    const oauth = Auth.config[this.name];
     const accountSchema = {
       accountId: user.id,
       provider: "discord",
@@ -169,39 +185,43 @@ export class DiscordProvider implements Provider {
       name: user.username,
       image: `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`,
       emailVerified: user.verified,
-      provider: this.name
+      provider: this.name,
     };
 
-    const sessionToken = await createToken({
-      sub: user.email,
-      provider: "discord",
-      email: user.email,
-      accountId: user.id,
-    }, accountSchema.expiresAt)
+    const sessionToken = await createToken(
+      {
+        sub: user.email,
+        provider: "discord",
+        email: user.email,
+        accountId: user.id,
+      },
+      accountSchema.expiresAt,
+    );
 
     const sessionSchema: SessionType = {
       sessionToken: sessionToken,
       expiresAt: accountSchema.expiresAt,
       accountId: user.id,
-      provider: 'discord'
+      provider: "discord",
     };
 
     const createPromises: any = [
       oauth.database.createAccount(accountSchema),
       oauth.database.createUser(userSchema),
-      oauth.database.createSession(sessionSchema)
+      oauth.database.createSession(sessionSchema),
     ];
 
     if (oauth.cache) {
       createPromises.push(
         oauth.cache.setValue(
           sessionSchema.sessionToken,
-          JSON.stringify(accountSchema), {
+          JSON.stringify(accountSchema),
+          {
             expire: Math.floor(
-              (new Date(accountSchema.expiresAt).getTime() - Date.now()) /
-              1000,
+              (new Date(accountSchema.expiresAt).getTime() - Date.now()) / 1000,
             ),
-          })
+          },
+        ),
       );
     }
 

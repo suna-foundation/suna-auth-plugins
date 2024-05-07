@@ -1,6 +1,6 @@
 {
   "name": "suna-auth-redis",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
@@ -17,7 +17,7 @@
     "mongoose": "^8.1.2",
     "next": "^14.1.0",
     "server-only": "^0.0.1",
-    "suna-auth": "^1.0.3"
+    "suna-auth": "^1.0.10"
   },
   "devDependencies": {
     "@types/node": "^20.11.17",
