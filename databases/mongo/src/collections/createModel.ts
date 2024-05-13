@@ -9,7 +9,7 @@ export default function createModel<T, TModel extends Model<T> = Model<T>>(
 ): TModel {
   // Use a single path for both development and production.
   // In development, check for the model in global scope to support HMR.
-  if (process.env.NODE_ENV === "development" && mongoose.models[modelName]) {
+  if (mongoose.models[modelName]) {
     return mongoose.models[modelName] as TModel;
   }
 
