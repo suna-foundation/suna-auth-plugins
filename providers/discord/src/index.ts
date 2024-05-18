@@ -38,7 +38,20 @@ export class DiscordProvider implements Provider {
   public async handleCallback(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const code = searchParams.get("code");
+    const error = searchParams.get("error");
+    const error_description = searchParams.get("error_description");
 
+    const cookie = cookies();
+    const referrer = new URL(
+      cookie.get("redirectUrl")?.value || "/",
+      process.env.NEXTAUTH_URL,
+    );
+    cookie.delete("redirectUrl");
+
+    if (error || error_description) {
+      if (error_description == "The resource owner or authorization server denied the request") return Response.redirect(referrer, 302);
+      return sendErrorRedirect(401, error_description || "The discord oauth failed, and did not error");
+    }
     if (!code) return sendErrorRedirect(400, "no ?code provided");
 
     const token = await this.getToken(code);
@@ -66,18 +79,11 @@ export class DiscordProvider implements Provider {
 
     await Auth.callbacks.handleCreate(savedAccount, savedUser, savedSession);
 
-    const cookie = cookies();
     cookie.set({
       name: "SessionToken",
       value: savedSession.sessionToken,
       expires: (savedAccount as AccountType).expiresAt,
     });
-
-    const referrer = new URL(
-      cookie.get("redirectUrl")?.value || "/",
-      process.env.NEXTAUTH_URL,
-    );
-    cookie.delete("redirectUrl");
 
     return Response.redirect(referrer, 302);
   }
