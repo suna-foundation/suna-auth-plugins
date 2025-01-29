@@ -1,6 +1,6 @@
 {
   "name": "suna-auth-mongoose",
-  "version": "1.0.3",
+  "version": "1.0.5",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
@@ -9,14 +9,15 @@
   ],
   "license": "MIT",
   "scripts": {
-    "build": "tsup"
+    "build": "tsup",
+    "build:publish": "npm run build && npm publish"
   },
   "dependencies": {
     "axios": "^1.6.7",
     "mongoose": "^8.1.2",
     "next": "^14.1.0",
     "server-only": "^0.0.1",
-    "suna-auth": "^1.0.10"
+    "suna-auth": "^1.0.13"
   },
   "devDependencies": {
     "@types/node": "^20.11.17",

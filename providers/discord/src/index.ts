@@ -3,7 +3,13 @@ import { NextRequest } from "next/server";
 import { cookies } from "next/headers";
 import axios from "axios";
 
-import { Provider, Session, SessionType, UserType, AccountType } from "suna-auth/dist/types";
+import {
+  Provider,
+  Session,
+  SessionType,
+  UserType,
+  AccountType,
+} from "suna-auth/dist/types";
 import {
   Auth,
   createToken,
@@ -44,13 +50,20 @@ export class DiscordProvider implements Provider {
     const cookie = cookies();
     const referrer = new URL(
       cookie.get("redirectUrl")?.value || "/",
-      process.env.NEXTAUTH_URL,
+      process.env.NEXTAUTH_URL
     );
     cookie.delete("redirectUrl");
 
     if (error || error_description) {
-      if (error_description == "The resource owner or authorization server denied the request") return Response.redirect(referrer, 302);
-      return sendErrorRedirect(401, error_description || "The discord oauth failed, and did not error");
+      if (
+        error_description ==
+        "The resource owner or authorization server denied the request"
+      )
+        return Response.redirect(referrer, 302);
+      return sendErrorRedirect(
+        401,
+        error_description || "The discord oauth failed, and did not error"
+      );
     }
     if (!code) return sendErrorRedirect(400, "no ?code provided");
 
@@ -74,7 +87,7 @@ export class DiscordProvider implements Provider {
 
     const [savedAccount, savedUser, savedSession] = await this.saveData(
       user,
-      tokenData,
+      tokenData
     );
 
     await Auth.callbacks.handleCreate(savedAccount, savedUser, savedSession);
@@ -89,9 +102,18 @@ export class DiscordProvider implements Provider {
   }
 
   public async handleSignIn(request: NextRequest, referer?: string) {
-    const url = this.getOauthUrl();
+    const url = this.getOauthUrl(request);
 
     cookies().set({ name: "redirectUrl", value: referer || "/" });
+    cookies().set({
+      name: "signInHeaders",
+      value: JSON.stringify({
+        scopes: request.headers.get("scopes") || undefined,
+        authorization: request.headers.get("authorization") || undefined,
+        client_id: request.headers.get("client_id") || undefined,
+        client_secret: request.headers.get("client_secret") || undefined,
+      }),
+    });
 
     return sendJson({ url: url });
   }
@@ -140,10 +162,16 @@ export class DiscordProvider implements Provider {
     return `${url || process.env.NEXTAUTH_URL}/api/auth/callback/discord`;
   }
 
-  private getOauthUrl(redirect_uri?: string): string {
-    return `${this.credential.authorization}?scope=${this.credential.scopes.join(
-      "+",
-    )}&client_id=${this.credential.client_id}&response_type=code&redirect_uri=${redirect_uri || this.getRedirectUri()}`;
+  private getOauthUrl(request: NextRequest): string {
+    const scopes = request.headers.get("scopes") || undefined;
+    const authorization = request.headers.get("authorization") || undefined;
+    const client_id = request.headers.get("client_id") || undefined;
+
+    return `${
+      authorization || this.credential.authorization
+    }?scope=${scopes || this.credential.scopes.join("+")}&client_id=${
+      client_id || this.credential.client_id
+    }&response_type=code&redirect_uri=${this.getRedirectUri()}`;
   }
 
   private async getToken(code: string) {
@@ -201,7 +229,7 @@ export class DiscordProvider implements Provider {
         email: user.email,
         accountId: user.id,
       },
-      accountSchema.expiresAt,
+      accountSchema.expiresAt
     );
 
     const sessionSchema: SessionType = {
@@ -224,10 +252,10 @@ export class DiscordProvider implements Provider {
           JSON.stringify(accountSchema),
           {
             expire: Math.floor(
-              (new Date(accountSchema.expiresAt).getTime() - Date.now()) / 1000,
+              (new Date(accountSchema.expiresAt).getTime() - Date.now()) / 1000
             ),
-          },
-        ),
+          }
+        )
       );
     }
 
