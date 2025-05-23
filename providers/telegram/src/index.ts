@@ -1,9 +1,20 @@
 import "server-only";
-import {NextRequest} from "next/server";
-import {cookies} from "next/headers";
 
-import {AccountType, Provider, Session, SessionType, UserType} from "suna-auth/dist/types";
-import {Auth, createToken, decodeToken, sendErrorRedirect, sendJson,} from "suna-auth";
+import {
+  AccountType,
+  IWebRequest,
+  Provider,
+  Session,
+  SessionType,
+  UserType,
+} from "suna-auth/dist/types";
+import {
+  Auth,
+  createToken,
+  decodeToken,
+  sendErrorRedirect,
+  sendJson,
+} from "suna-auth";
 
 interface Config {
   bot_id: string;
@@ -28,19 +39,22 @@ export class TelegramProvider implements Provider {
     return this.instance;
   }
 
-  public async handleCallback(request: NextRequest): Promise<Response> {
-    const url = request.nextUrl;
-    const tgAuthResult = url.searchParams.get('tgAuthResult')
+  public async handleCallback(request: IWebRequest): Promise<Response> {
+    const tgAuthResult = request.query.get("tgAuthResult");
 
-    let redirectCount = parseInt(url.searchParams.get('redirectCount') || "0");
+    let redirectCount = parseInt(request.query.get("redirectCount") || "0");
 
     if (!tgAuthResult) {
       redirectCount += 1;
 
       if (redirectCount > 2) {
-        return sendErrorRedirect(400, 'Could not get tgAuthResult, please try to login again');
+        return sendErrorRedirect(
+          400,
+          "Could not get tgAuthResult, please try to login again"
+        );
       } else {
-        return new Response(`<!DOCTYPE html>
+        return new Response(
+          `<!DOCTYPE html>
 <html lang="en">
 <head>
   <script>
@@ -61,60 +75,62 @@ export class TelegramProvider implements Provider {
 <body>
   <h1>Redirecting...</h1>
 </body>
-</html>`, {
-          status: 200,
-          headers: {
-            'Content-Type': 'text/html',
+</html>`,
+          {
+            status: 200,
+            headers: {
+              "Content-Type": "text/html",
+            },
           }
-        });
+        );
       }
     }
 
     // Initialize cookies and referrer
-    const cookie = cookies();
+    const cookie = request.cookies;
     const referrer = new URL(
-      cookie.get('redirectUrl')?.value || '/',
-      process.env.NEXTAUTH_URL,
+      cookie.get("redirectUrl")?.value || "/",
+      process.env.NEXTAUTH_URL
     );
-    cookie.delete('redirectUrl');
+    cookie.delete("redirectUrl");
 
     // Decode base64 tgAuthResult
-    const tgAuthResultBuffer = Buffer.from(tgAuthResult, 'base64');
-    const tgAuthResultString = tgAuthResultBuffer.toString('utf8');
+    const tgAuthResultBuffer = Buffer.from(tgAuthResult, "base64");
+    const tgAuthResultString = tgAuthResultBuffer.toString("utf8");
 
-
-    if (!tgAuthResultString) return sendErrorRedirect(400, 'No tgAuthResult provided');
+    if (!tgAuthResultString)
+      return sendErrorRedirect(400, "No tgAuthResult provided");
 
     const tgAuthResultJson = JSON.parse(tgAuthResultString);
-    if (!tgAuthResultJson.id) return sendErrorRedirect(404, 'Could not get user data from Telegram');
+    if (!tgAuthResultJson.id)
+      return sendErrorRedirect(404, "Could not get user data from Telegram");
 
-    const [savedAccount, savedUser, savedSession] = await this.saveData(tgAuthResultJson);
+    const [savedAccount, savedUser, savedSession] = await this.saveData(
+      tgAuthResultJson
+    );
 
     await Auth.callbacks.handleCreate(savedAccount, savedUser, savedSession);
 
-    cookie.set({
-      name: 'SessionToken',
-      value: savedSession.sessionToken,
+    cookie.set("SessionToken", savedSession.sessionToken, {
       expires: (savedAccount as AccountType).expiresAt,
     });
 
     return Response.redirect(referrer, 302);
   }
 
-
-  public async handleSignIn(request: NextRequest, referer?: string) {
+  public async handleSignIn(request: IWebRequest, referer?: string) {
     const url = this.getOauthUrl();
 
-    cookies().set({name: "redirectUrl", value: referer || "/"});
+    request.cookies.set("redirectUrl", referer || "/");
 
-    return sendJson({url: url});
+    return sendJson({ url: url });
   }
 
-  public async handleSignOut(request: NextRequest) {
+  public async handleSignOut(request: IWebRequest) {
     return;
   }
 
-  public async handleAuthCheck(token: string) {
+  public async handleAuthCheck(request: IWebRequest, token: string) {
     const telegramProvider = Auth.config[this.name];
     const session = await telegramProvider.database.findSession({
       sessionToken: token,
@@ -138,7 +154,7 @@ export class TelegramProvider implements Provider {
     if (!user || !jwtResult || jwtResult.payload.email !== user.email)
       return false;
 
-    return {user: user} as Session;
+    return { user: user } as Session;
   }
 
   private getRedirectUri(url?: string) {
@@ -146,14 +162,14 @@ export class TelegramProvider implements Provider {
   }
 
   private getOauthUrl(redirect_uri?: string): string {
-    const url = new URL('https://oauth.telegram.org/auth');
-    url.searchParams.set('domain', 'telegrampassport');
-    url.searchParams.set('scope', this.credential.scope);
-    url.searchParams.set('nonce', this.credential.nonce);
-    url.searchParams.set('bot_id', this.credential.bot_id);
-    url.searchParams.set('public_key', this.credential.public_key);
-    url.searchParams.set('origin', this.getRedirectUri());
-    url.searchParams.set('callback_url', this.getRedirectUri());
+    const url = new URL("https://oauth.telegram.org/auth");
+    url.searchParams.set("domain", "telegrampassport");
+    url.searchParams.set("scope", this.credential.scope);
+    url.searchParams.set("nonce", this.credential.nonce);
+    url.searchParams.set("bot_id", this.credential.bot_id);
+    url.searchParams.set("public_key", this.credential.public_key);
+    url.searchParams.set("origin", this.getRedirectUri());
+    url.searchParams.set("callback_url", this.getRedirectUri());
 
     return url.toString();
   }
@@ -192,8 +208,8 @@ export class TelegramProvider implements Provider {
         email: "",
         accountId: `${user.id}`,
       },
-      accountSchema.expiresAt,
-    )
+      accountSchema.expiresAt
+    );
 
     const sessionSchema = {
       sessionToken: sessionToken,
@@ -215,10 +231,10 @@ export class TelegramProvider implements Provider {
           JSON.stringify(accountSchema),
           {
             expire: Math.floor(
-              (new Date(accountSchema.expiresAt).getTime() - Date.now()) / 1000,
+              (new Date(accountSchema.expiresAt).getTime() - Date.now()) / 1000
             ),
-          },
-        ),
+          }
+        )
       );
     }
 

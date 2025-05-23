@@ -1,6 +1,4 @@
 import "server-only";
-import { NextRequest } from "next/server";
-import { cookies } from "next/headers";
 import axios from "axios";
 
 import {
@@ -9,6 +7,7 @@ import {
   SessionType,
   UserType,
   AccountType,
+  IWebRequest,
 } from "suna-auth/dist/types";
 import {
   Auth,
@@ -41,13 +40,13 @@ export class DiscordProvider implements Provider {
     return this.instance;
   }
 
-  public async handleCallback(request: NextRequest) {
-    const searchParams = request.nextUrl.searchParams;
-    const code = searchParams.get("code");
-    const error = searchParams.get("error");
-    const error_description = searchParams.get("error_description");
+  public async handleCallback(request: IWebRequest) {
+    const searchQuery = request.query;
+    const code = searchQuery.get("code");
+    const error = searchQuery.get("error");
+    const error_description = searchQuery.get("error_description");
 
-    const cookie = cookies();
+    const cookie = request.cookies;
     const referrer = new URL(
       cookie.get("redirectUrl")?.value || "/",
       process.env.NEXTAUTH_URL
@@ -92,37 +91,36 @@ export class DiscordProvider implements Provider {
 
     await Auth.callbacks.handleCreate(savedAccount, savedUser, savedSession);
 
-    cookie.set({
-      name: "SessionToken",
-      value: savedSession.sessionToken,
+    cookie.set("SessionToken", savedSession.sessionToken, {
       expires: (savedAccount as AccountType).expiresAt,
     });
 
     return Response.redirect(referrer, 302);
   }
 
-  public async handleSignIn(request: NextRequest, referer?: string) {
+  public async handleSignIn(request: IWebRequest, referer?: string) {
     const url = this.getOauthUrl(request);
+    const cookies = request.cookies;
 
-    cookies().set({ name: "redirectUrl", value: referer || "/" });
-    cookies().set({
-      name: "signInHeaders",
-      value: JSON.stringify({
+    cookies.set("redirectUrl", referer || "/");
+    cookies.set(
+      "signInHeaders",
+      JSON.stringify({
         scopes: request.headers.get("scopes") || undefined,
         authorization: request.headers.get("authorization") || undefined,
         client_id: request.headers.get("client_id") || undefined,
         client_secret: request.headers.get("client_secret") || undefined,
-      }),
-    });
+      })
+    );
 
     return sendJson({ url: url });
   }
 
-  public async handleSignOut(request: NextRequest) {
+  public async handleSignOut(request: IWebRequest) {
     return;
   }
 
-  public async handleAuthCheck(token: string) {
+  public async handleAuthCheck(request: IWebRequest, token: string) {
     const discordProvider = Auth.config[this.name];
     const session = await discordProvider.database.findSession({
       sessionToken: token,
@@ -162,14 +160,14 @@ export class DiscordProvider implements Provider {
     return `${url || process.env.NEXTAUTH_URL}/api/auth/callback/discord`;
   }
 
-  private getOauthUrl(request: NextRequest): string {
+  private getOauthUrl(request: IWebRequest): string {
     const scopes = request.headers.get("scopes") || undefined;
     const authorization = request.headers.get("authorization") || undefined;
     const client_id = request.headers.get("client_id") || undefined;
 
-    return `${
-      authorization || this.credential.authorization
-    }?scope=${scopes || this.credential.scopes.join("+")}&client_id=${
+    return `${authorization || this.credential.authorization}?scope=${
+      scopes || this.credential.scopes.join("+")
+    }&client_id=${
       client_id || this.credential.client_id
     }&response_type=code&redirect_uri=${this.getRedirectUri()}`;
   }

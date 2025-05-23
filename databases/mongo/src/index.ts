@@ -1,6 +1,6 @@
 import 'server-only'
 import mongoose, {Document} from "mongoose";
-import {AccountType, Database, SessionType, UserType} from "suna-auth/src/types";
+import {AccountType, Database, SessionType, UserType} from 'suna-auth/dist/types';
 import Accounts from "./collections/accounts";
 import Users from "./collections/users";
 import Sessions from "./collections/sessions";
@@ -89,7 +89,7 @@ export class MongooseAuth implements Database {
 
         // Remove unwanted mongoDB properties.
         delete userObj._id;
-        delete userObj.__v;
+        delete (userObj as any).__v;
 
         // Return the plain JavaScript object.
         return userObj;

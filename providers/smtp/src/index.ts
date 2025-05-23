@@ -1,8 +1,6 @@
 import "server-only";
-import { NextRequest } from "next/server";
 import nodemailer, { Transporter } from "nodemailer";
 import { nanoid } from "nanoid";
-import { cookies } from "next/headers";
 
 import bcrypt from "bcrypt";
 import {
@@ -13,7 +11,13 @@ import {
   sendJson,
   createToken,
 } from "suna-auth";
-import { AccountType, Session, SessionType, UserType } from "suna-auth/dist/types";
+import {
+  AccountType,
+  IWebRequest,
+  Session,
+  SessionType,
+  UserType,
+} from "suna-auth/dist/types";
 
 interface Config {
   tokenLifetime: number;
@@ -67,46 +71,48 @@ export class SmtpProvider {
    * Saves the user data and token information.
    * Sets the session token and redirects the user back to the referring page.
    *
-   * @param {NextRequest} request - The request object containing the authentication callback information.
+   * @param {IWebRequest} request - The request object containing the authentication callback information.
    * @return {Response} - The redirect response.
    */
-  public async handleCallback(request: NextRequest) {
+  public async handleCallback(request: IWebRequest) {
     /*
      * This is going to be the callback for when the link is clicked from the mail inbox of the person its sent from
      * */
 
-    const searchParams = request.nextUrl.searchParams;
-    const code = searchParams.get("code");
+    const searchQuery = request.query;
+    const code = searchQuery.get("code");
 
     if (!code)
       return sendErrorRedirect(400, "no code provided, please try again");
 
-    const sessionTokenString =
-      await Auth.config[this.name].cache.getValue(code);
+    const sessionTokenString = await Auth.config[this.name].cache.getValue(
+      code
+    );
     if (!sessionTokenString)
       return sendErrorRedirect(
         404,
-        "your sign in code has expired, please try again",
+        "your sign in code has expired, please try again"
       );
 
-    const sessionToken =
-      await decodeToken<SmtpProviderToken>(sessionTokenString);
+    const sessionToken = await decodeToken<SmtpProviderToken>(
+      sessionTokenString
+    );
     if (!sessionToken)
       return sendErrorRedirect(
         404,
-        "your sign in code has expired, please try again",
+        "your sign in code has expired, please try again"
       );
 
     const payload = sessionToken.payload;
     const [savedAccount, savedUser, savedSession, cacheValue] =
-      await this.saveData(payload);
+      await this.saveData(request, payload);
 
     await Auth.callbacks.handleCreate(savedAccount, savedUser, savedSession);
 
-    const cookie = cookies();
+    const cookie = request.cookies;
     const referrer = new URL(
       cookie.get("redirectUrl")?.value || "/",
-      process.env.NEXTAUTH_URL,
+      process.env.NEXTAUTH_URL
     );
     cookie.delete("redirectUrl");
 
@@ -116,11 +122,11 @@ export class SmtpProvider {
   /**
    * Handles the sign-in process and returns the OAuth URL.
    *
-   * @param {NextRequest} request - The request object.
+   * @param {IWebRequest} request - The request object.
    * @param {string} [referer] - The referer URL.
    * @returns {Promise<Object>} - The JSON response containing the OAuth URL.
    */
-  public async handleSignIn(request: NextRequest, referer?: string) {
+  public async handleSignIn(request: IWebRequest, referer?: string) {
     const activeProvider = Auth.config[this.name];
     const email = request.headers.get("email");
     const password = request.headers.get("password");
@@ -143,11 +149,11 @@ export class SmtpProvider {
     if (account && user && method !== "updatePassword") {
       const isPasswordCorrect = await validateHash(
         password,
-        account.accessToken,
+        account.accessToken
       );
       if (!isPasswordCorrect) return sendError(401, "wrong password");
 
-      const [sessionSchema] = await this.createSession(account, user);
+      const [sessionSchema] = await this.createSession(request, account, user);
       if (sessionSchema)
         return sendJson({ url: referer }) || sendJson("successfully sign in");
       else return sendError(500, "could not sign in, please try again");
@@ -167,7 +173,7 @@ export class SmtpProvider {
 
       const redirectUpdatePassword = new URL(
         `/api/auth/message?message=Please check your inbox to change your password`,
-        process.env.NEXTAUTH_URL,
+        process.env.NEXTAUTH_URL
       );
       return sendJson({ url: redirectUpdatePassword });
     }
@@ -184,7 +190,7 @@ export class SmtpProvider {
       //cookies().set({name: "redirectUrl", value: referer || "/"});
       const redirectCreateAccount = new URL(
         `/api/auth/message?message=Please check your inbox for a verification email`,
-        process.env.NEXTAUTH_URL,
+        process.env.NEXTAUTH_URL
       );
       return sendJson({ url: redirectCreateAccount });
     }
@@ -192,7 +198,7 @@ export class SmtpProvider {
     return sendError(500, "nothing exists");
   }
 
-  public async handleSignOut(request: NextRequest) {
+  public async handleSignOut(request: IWebRequest) {
     return;
   }
 
@@ -231,7 +237,7 @@ export class SmtpProvider {
     await smtpProvider.database.purgeSessions(user);
   }
 
-  private async createSession(accountSchema: AccountType, user: UserType) {
+  private async createSession(request: IWebRequest, accountSchema: AccountType, user: UserType) {
     const smtpProvider = Auth.config[this.name];
     const expirationDate = new Date(Date.now() + this.credential.tokenLifetime);
     const sessionToken: string = await createToken(
@@ -241,7 +247,7 @@ export class SmtpProvider {
         email: user.email,
         accountId: user.email,
       },
-      expirationDate,
+      expirationDate
     );
 
     const sessionSchema: SessionType = {
@@ -262,17 +268,15 @@ export class SmtpProvider {
           JSON.stringify(accountSchema),
           {
             expire: Math.floor(
-              (new Date(expirationDate).getTime() - Date.now()) / 1000,
+              (new Date(expirationDate).getTime() - Date.now()) / 1000
             ),
-          },
-        ),
+          }
+        )
       );
     }
 
-    const cookie = cookies();
-    cookie.set({
-      name: "SessionToken",
-      value: sessionSchema.sessionToken,
+    const cookie = request.cookies;
+    cookie.set("SessionToken", sessionSchema.sessionToken, {
       expires: accountSchema.expiresAt,
     });
 
@@ -280,9 +284,9 @@ export class SmtpProvider {
   }
 
   private async createUpdateCode({
-                                   email,
-                                   password,
-                                 }: {
+    email,
+    password,
+  }: {
     email: string;
     password: string;
   }) {
@@ -295,7 +299,7 @@ export class SmtpProvider {
         password: password,
         sub: email,
       },
-      new Date(Date.now() + 900000),
+      new Date(Date.now() + 900000)
     );
     // Save the value to the providers cache and expire in 15min
     await activeProvider.cache.setValue(code, passwordVerificationToken, {
@@ -305,7 +309,7 @@ export class SmtpProvider {
     return code;
   }
 
-  private async saveData(payload: SmtpProviderToken) {
+  private async saveData(request: IWebRequest, payload: SmtpProviderToken) {
     const activeProvider = Auth.config[this.name];
 
     const userSchema: UserType = {
@@ -333,7 +337,7 @@ export class SmtpProvider {
     const createPromises: any = [
       activeProvider.database.createAccount(accountSchema),
       activeProvider.database.createUser(userSchema),
-      ...(await this.createSession(accountSchema, userSchema)),
+      ...(await this.createSession(request, accountSchema, userSchema)),
     ];
 
     return Promise.all(createPromises);
@@ -368,7 +372,7 @@ export const createHash = async (data: string): Promise<string> => {
  */
 export const validateHash = async (
   data: string,
-  hash: string,
+  hash: string
 ): Promise<boolean> => {
   return bcrypt.compare(data, hash);
 };

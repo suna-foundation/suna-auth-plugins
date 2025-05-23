@@ -1,9 +1,7 @@
 import "server-only";
-import { NextRequest } from "next/server";
-import { cookies } from "next/headers";
 import axios from "axios";
 
-import { Provider, Session, SessionType, UserType, AccountType } from "suna-auth/dist/types";
+import { Provider, Session, SessionType, UserType, AccountType, IWebRequest } from "suna-auth/dist/types";
 import {
   Auth,
   createToken,
@@ -51,9 +49,9 @@ export class GoogleProvider implements Provider {
     return this.instance;
   }
 
-  public async handleCallback(request: NextRequest) {
-    const searchParams = request.nextUrl.searchParams;
-    const code = searchParams.get("code");
+  public async handleCallback(request: IWebRequest) {
+    const searchQuery = request.query;
+    const code = searchQuery.get("code");
     if (!code) return sendErrorRedirect(400, "no ?code provided");
 
     const data = new URLSearchParams();
@@ -107,10 +105,8 @@ export class GoogleProvider implements Provider {
     // Add an hour to expiration
     expirationDate.setHours(expirationDate.getHours() + 2);
 
-    const cookie = cookies();
-    cookie.set({
-      name: "SessionToken",
-      value: savedSession.sessionToken,
+    const cookie = request.cookies
+    cookie.set("SessionToken", savedSession.sessionToken, {
       expires: expirationDate,
     });
 
@@ -122,19 +118,20 @@ export class GoogleProvider implements Provider {
     return Response.redirect(referrer, 302);
   }
 
-  public async handleSignIn(request: NextRequest, referer?: string) {
+  public async handleSignIn(request: IWebRequest, referer?: string) {
     const url = this.getOauthUrl();
 
-    cookies().set({ name: "redirectUrl", value: referer || "/" });
+    const cookies = request.cookies;
+    cookies.set("redirectUrl", referer || "/");
 
     return sendJson({ url: url });
   }
 
-  public async handleSignOut(request: NextRequest) {
+  public async handleSignOut(request: IWebRequest) {
     return;
   }
 
-  public async handleAuthCheck(token: string) {
+  public async handleAuthCheck(request: IWebRequest, token: string) {
     const activeProvider = Auth.config[this.name];
     const session = await activeProvider.database.findSession({
       sessionToken: token,

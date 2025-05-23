@@ -1,0 +1,22 @@
+{
+  "name": "suna-auth-plugins",
+  "version": "1.0.0",
+  "main": "index.js",
+  "packageManager": "bun@1.2.10",
+  "workspaces": [
+    "databases/*",
+    "providers/*"
+  ],
+  "scripts": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/suna-foundation/suna-auth-plugins.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/suna-foundation/suna-auth-plugins/issues"
+  },
+  "homepage": "https://github.com/suna-foundation/suna-auth-plugins#readme",
+  "description": ""
+}
