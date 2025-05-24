@@ -1,4 +1,4 @@
-import 'server-only'
+import '@nobush/server-only'
 import mongoose, {Document} from "mongoose";
 import {AccountType, Database, SessionType, UserType} from 'suna-auth/dist/types';
 import Accounts from "./collections/accounts";

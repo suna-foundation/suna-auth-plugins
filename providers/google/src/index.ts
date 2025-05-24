@@ -1,4 +1,4 @@
-import "server-only";
+import "@nobush/server-only";
 import axios from "axios";
 
 import { Provider, Session, SessionType, UserType, AccountType, IWebRequest } from "suna-auth/dist/types";

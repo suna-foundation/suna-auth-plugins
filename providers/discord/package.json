@@ -1,6 +1,6 @@
 {
   "name": "suna-auth-discord",
-  "version": "2.0.0",
+  "version": "2.0.3",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
@@ -14,11 +14,10 @@
   },
   "dependencies": {
     "axios": "^1.6.7",
-    "server-only": "^0.0.1",
-    "suna-auth": "^2.0.0"
+    "@nobush/server-only": "^0.0.1",
+    "suna-auth": "^2.0.1"
   },
   "devDependencies": {
-    "@types/node": "^20.11.17",
     "tsup": "^8.0.2"
   }
 }

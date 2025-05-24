@@ -1,4 +1,4 @@
-import "server-only";
+import "@nobush/server-only";
 import Redis, { Redis as RedisInstance } from "ioredis";
 import { Cache } from "suna-auth/dist/types";
 

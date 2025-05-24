@@ -1,6 +1,6 @@
 {
   "name": "suna-auth-smtp",
-  "version": "2.0.0",
+  "version": "2.0.4",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
@@ -13,13 +13,11 @@
   },
   "dependencies": {
     "axios": "^1.6.7",
-    "bcrypt": "^5.1.1",
     "nodemailer": "^6.9.9",
-    "server-only": "^0.0.1",
-    "suna-auth": "^2.0.0"
+    "@nobush/server-only": "^0.0.1",
+    "suna-auth": "^2.0.1"
   },
   "devDependencies": {
-    "@types/bcrypt": "^5.0.2",
     "@types/nodemailer": "^6.4.14",
     "tsup": "^8.0.2"
   }
